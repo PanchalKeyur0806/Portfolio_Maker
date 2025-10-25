@@ -1,8 +1,10 @@
-import React from "react";
+// import React, { useActionState } from "react";
+import axios from "axios";
 import { useState } from "react";
 import FormSectionWrapper from "./parts/FormSectionWrapper";
 import { Plus, Trash, X } from "lucide-react";
 
+// For Normal Form
 function InputFields({
   labelId,
   labelName,
@@ -25,7 +27,32 @@ function InputFields({
   );
 }
 
-const TemplateForm = ({ formOpen, action, pending }) => {
+// For Multifle fields Forms
+function InputField({
+  labelId,
+  labelName,
+  inputType,
+  inputId,
+  placeHolder,
+  onChange,
+  value,
+}) {
+  return (
+    <div className="flex gap-3 flex-col">
+      <label htmlFor={labelId}>{labelName}</label>
+      <input
+        type={inputType}
+        id={inputId}
+        value={value}
+        onChange={onChange}
+        placeholder={placeHolder}
+        className="bg-gray-100 text-gray-500 focus:outline-none px-5 py-2 rounded-md"
+      />
+    </div>
+  );
+}
+
+const TemplateForm = ({ formOpen, formRef, selectedTemplate }) => {
   const [activeSection, setActiveSection] = useState("BasicDetails");
   const [services, setServices] = useState([{ title: "", description: "" }]);
   const [products, setProducts] = useState([
@@ -36,6 +63,95 @@ const TemplateForm = ({ formOpen, action, pending }) => {
   ]);
   const [skillVal, setSkillVal] = useState("");
   const [skills, setSkills] = useState([]);
+
+  const [err, setError] = useState("");
+  async function handleFormSubmit(e) {
+    e.preventDefault();
+
+    const formData = new FormData(e.target);
+
+    const data = {
+      basicDetails: {
+        name: formData.get("name"),
+        email: formData.get("email"),
+        phoneNumber: formData.get("phoneNumber"),
+        address: formData.get("address"),
+      },
+      hero: {
+        title: formData.get("title"),
+        subtitle: formData.get("subtitle"),
+        heroImg: formData.get("heroImg"),
+      },
+      aboutSection: {
+        description: formData.get("description"),
+        profileImg: formData.get("profileImg"),
+        highlight: formData.get("highlight"),
+      },
+      services,
+      products,
+      clients,
+      skills,
+    };
+
+    try {
+      setError("");
+
+      const formPayload = new FormData();
+
+      formPayload.append("basicDetails", JSON.stringify(data.basicDetails));
+      formPayload.append(
+        "hero",
+        JSON.stringify({
+          title: data.hero.title,
+          subtitle: data.hero.subtitle,
+        })
+      );
+      formPayload.append(
+        "aboutSection",
+        JSON.stringify({
+          description: data.aboutSection.description,
+          highlight: data.aboutSection.highlight,
+        })
+      );
+
+      if (data.hero.heroImg) formPayload.append("heroImg", data.hero.heroImg);
+      if (data.aboutSection.profileImg)
+        formPayload.append("profileImg", data.aboutSection.profileImg);
+
+      formPayload.append("services", JSON.stringify(data.services));
+      formPayload.append("products", JSON.stringify(data.products));
+      formPayload.append("clients", JSON.stringify(data.clients));
+      formPayload.append("skills", JSON.stringify(data.skills));
+
+      const response = await axios.post(
+        "http://localhost:3003/portfolio",
+        formPayload,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      console.log("Response:", response.data);
+      if (response.status === "success") {
+        alert("Form successfully submited");
+      }
+    } catch (error) {
+      console.error(error);
+      setError(error.response?.data?.message);
+      setTimeout(() => {
+        setError("");
+      }, 5000);
+    }
+  }
+
+  // update helper
+  const updateHelper = (index, field, value, state, updateState) => {
+    const update = [...state];
+    update[index][field] = value;
+    updateState(update);
+  };
 
   //   createServices
   const createServices = () => {
@@ -90,10 +206,12 @@ const TemplateForm = ({ formOpen, action, pending }) => {
   const handleSkills = () => {
     if (skills.length >= 7) return;
     setSkills((prev) => [...prev, skillVal]);
+    setSkillVal("");
   };
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && e.target.value.trim() !== "") {
+      e.preventDefault();
       handleSkills();
     }
   };
@@ -116,16 +234,22 @@ const TemplateForm = ({ formOpen, action, pending }) => {
 
   return (
     <div
-      className={`max-w-[800px] mx-auto  mt-20 shadow-lg font-open-sans ${
+      className={`max-w-[800px] mx-auto mb-10 px-3 md:px-0  mt-20 shadow-lg font-open-sans ${
         formOpen === true ? "block" : "hidden"
       }`}
     >
+      {/* template name */}
+      <div className="text-3xl font-semibold py-5 px-5">
+        <h1>{selectedTemplate}</h1>
+      </div>
+
       <div className="shadow rounded-xl bg-white px-5 py-3">
         {/* Show all the sections */}
         <div className="flex gap-3 flex-wrap">
           {sections &&
             sections.map((sec) => (
               <button
+                type="button"
                 key={sec.id}
                 onClick={() => setActiveSection(sec.id)}
                 className={`px-5 py-2 cursor-pointer shadow rounded-lg transition-colors duration-300 ease-in-out ${
@@ -140,7 +264,11 @@ const TemplateForm = ({ formOpen, action, pending }) => {
         </div>
 
         {/* Form */}
-        <form action={action}>
+        <form
+          onSubmit={handleFormSubmit}
+          encType="multipart/form-data"
+          noValidate
+        >
           {/* Show Basic Details page */}
           <FormSectionWrapper
             activeSection={activeSection}
@@ -178,7 +306,7 @@ const TemplateForm = ({ formOpen, action, pending }) => {
                 placeHolder={"Ex:- 1234567890"}
               />
 
-              {/* Company Name */}
+              {/* Address Name */}
               <InputFields
                 labelId={"address"}
                 labelName={"Enter Your Address"}
@@ -262,7 +390,7 @@ const TemplateForm = ({ formOpen, action, pending }) => {
                 labelName={"Enter Your Hightlight"}
                 inputType={"text"}
                 inputId={"highlight"}
-                inputName={"Hightlight"}
+                inputName={"highlight"}
                 placeHolder={"Ex :- i have worked on serval contribution..."}
               />
             </div>
@@ -277,6 +405,7 @@ const TemplateForm = ({ formOpen, action, pending }) => {
             {/* buttons for increasing the services */}
             <div className="mt-6">
               <button
+                type="button"
                 onClick={createServices}
                 className="cursor-pointer  flex gap-3 items-center bg-red-600 text-white px-4 py-2 rounded-lg transition-transform duration-150 ease-in-out active:scale-96"
               >
@@ -288,13 +417,14 @@ const TemplateForm = ({ formOpen, action, pending }) => {
             </div>
 
             {/* Showing all the services */}
-            {services.map((_, index) => (
+            {services.map((service, index) => (
               <div key={index}>
                 {/* check that service lenght */}
                 <div className="mt-10 flex items-center justify-between">
                   <h4 className="font-medium">Service {index + 1}</h4>
                   {services.length > 1 && (
                     <button
+                      type="button"
                       onClick={() => deleteService(index)}
                       className="flex items-center gap-3 px-4 py-2 rounded-lg bg-red-600 active:scale-96 transition-transform ease-in-out duration-150 text-white shadow cursor-pointer"
                     >
@@ -307,22 +437,41 @@ const TemplateForm = ({ formOpen, action, pending }) => {
                 </div>
                 <div className="mt-4">
                   {/* Title Field */}
-                  <InputFields
-                    labelId={"title"}
+                  <InputField
+                    labelId={`service-title-${index}`}
                     labelName={"Enter Your Services Title"}
                     inputType={"text"}
-                    inputId={"title"}
-                    inputName={"title"}
+                    inputId={`service-title-${index}`}
+                    value={service.title}
+                    placeHolder={"Ex :- Node.Js Developer "}
+                    onChange={(e) =>
+                      updateHelper(
+                        index,
+                        "title",
+                        e.target.value,
+                        services,
+                        setServices
+                      )
+                    }
                   />
 
                   {/* Description Field */}
                   <div className="mt-3">
-                    <label htmlFor="description">
+                    <label htmlFor={`service-description-${index}`}>
                       Enter Your Service Description
                     </label>
                     <textarea
-                      name="description"
-                      id="description"
+                      id={`service-description-${index}`}
+                      value={service.description}
+                      onChange={(e) =>
+                        updateHelper(
+                          index,
+                          "description",
+                          e.target.value,
+                          services,
+                          setServices
+                        )
+                      }
                       className="w-full px-5 py-2 rounded-lg focus:outline-none bg-gray-100 text-gray-500 mt-3"
                     ></textarea>
                   </div>
@@ -340,6 +489,7 @@ const TemplateForm = ({ formOpen, action, pending }) => {
             {/* button for increasing the products */}
             <div className="mt-6">
               <button
+                type="button"
                 onClick={createProduct}
                 className="cursor-pointer  flex gap-3 items-center bg-red-600 text-white px-4 py-2 rounded-lg transition-transform duration-150 ease-in-out active:scale-96"
               >
@@ -351,13 +501,14 @@ const TemplateForm = ({ formOpen, action, pending }) => {
             </div>
 
             {/* Increasing the map */}
-            {products.map((_, index) => (
+            {products.map((product, index) => (
               <div key={index}>
                 {/* buttons for deleting the product */}
                 <div className="mt-10 flex items-center justify-between">
                   <h4 className="font-medium">Product {index + 1}</h4>
                   {products.length > 1 && (
                     <button
+                      type="button"
                       onClick={() => deleteProduct(index)}
                       className="flex items-center gap-3 px-4 py-2 rounded-lg bg-red-600 active:scale-96 transition-transform ease-in-out duration-150 text-white shadow cursor-pointer"
                     >
@@ -371,33 +522,60 @@ const TemplateForm = ({ formOpen, action, pending }) => {
 
                 <div className="grid sm:grid-cols-2 gap-3 mt-6">
                   {/* Product Name */}
-                  <InputFields
-                    labelId={"productName"}
+                  <InputField
+                    labelId={`product-name-${index}`}
                     labelName={"Enter Product Name"}
                     inputType={"text"}
-                    inputId={"productName"}
-                    inputName={"productName"}
+                    inputId={`product-name-${index}`}
                     placeHolder={"Ex :- MERN Chat App"}
+                    onChange={(e) =>
+                      updateHelper(
+                        index,
+                        "productName",
+                        e.target.value,
+                        products,
+                        setProducts
+                      )
+                    }
+                    value={product.productName}
                   />
 
                   {/* Product Description */}
-                  <InputFields
-                    labelId={"productDes"}
+                  <InputField
+                    labelId={`product-description-${index}`}
                     labelName={"Enter Product Description"}
                     inputType={"text"}
-                    inputId={"productDes"}
-                    inputName={"productDes"}
-                    placeHolder={"Ex :- MERN Chat App with scalable code"}
+                    inputId={`product-description-${index}`}
+                    placeHolder={"Ex :- MERN Chat App with scalable"}
+                    onChange={(e) =>
+                      updateHelper(
+                        index,
+                        "productDes",
+                        e.target.value,
+                        products,
+                        setProducts
+                      )
+                    }
+                    value={product.productDes}
                   />
 
                   {/* Product Link */}
-                  <InputFields
-                    labelId={"productLink"}
+                  <InputField
+                    labelId={`product-link-${index}`}
                     labelName={"Enter Product Link"}
                     inputType={"text"}
-                    inputId={"productLink"}
-                    inputName={"productLink"}
-                    placeHolder={"Ex :- http://liveprojectlink.com"}
+                    inputId={`product-link-${index}`}
+                    placeHolder={"Ex :- http://www.google.com"}
+                    onChange={(e) =>
+                      updateHelper(
+                        index,
+                        "productLink",
+                        e.target.value,
+                        products,
+                        setProducts
+                      )
+                    }
+                    value={product.productLink}
                   />
                 </div>
               </div>
@@ -413,6 +591,7 @@ const TemplateForm = ({ formOpen, action, pending }) => {
             {/* Add Clients */}
             <div className="mt-6">
               <button
+                type="button"
                 onClick={createClient}
                 className="cursor-pointer  flex gap-3 items-center bg-red-600 text-white px-4 py-2 rounded-lg transition-transform duration-150 ease-in-out active:scale-96"
               >
@@ -424,13 +603,14 @@ const TemplateForm = ({ formOpen, action, pending }) => {
             </div>
 
             {/* Client Form */}
-            {clients.map((_, index) => (
+            {clients.map((client, index) => (
               <div key={index}>
                 {/* buttons for deleting client */}
                 <div className="mt-10 flex items-center justify-between">
                   <h4 className="font-medium">Client {index + 1}</h4>
                   {clients.length > 1 && (
                     <button
+                      type="button"
                       onClick={() => deleteClient(index)}
                       className="flex items-center gap-3 px-4 py-2 rounded-lg bg-red-600 active:scale-96 transition-transform ease-in-out duration-150 text-white shadow cursor-pointer"
                     >
@@ -444,33 +624,60 @@ const TemplateForm = ({ formOpen, action, pending }) => {
 
                 <div className="mt-6 grid sm:grid-cols-2 gap-3">
                   {/* Client Name */}
-                  <InputFields
-                    labelId={"clientName"}
+                  <InputField
+                    labelId={`client-name-${index}`}
                     labelName={"Enter Client Name"}
                     inputType={"text"}
-                    inputId={"clientName"}
-                    inputName={"clientName"}
+                    inputId={`client-name-${index}`}
                     placeHolder={"Ex :- Keyur Panchal"}
+                    onChange={(e) =>
+                      updateHelper(
+                        index,
+                        "clientName",
+                        e.target.value,
+                        clients,
+                        setClients
+                      )
+                    }
+                    value={client.clientName}
                   />
 
                   {/* Client Logo */}
-                  <InputFields
-                    labelId={"clientName"}
-                    labelName={"Enter Client Name"}
+                  <InputField
+                    labelId={`client-logo-${index}`}
+                    labelName={"Enter Client Logo"}
                     inputType={"text"}
-                    inputId={"clientName"}
-                    inputName={"clientName"}
-                    placeHolder={"Ex :- http://www.google.com"}
+                    inputId={`client-logo-${index}`}
+                    placeHolder={"Ex :-  http://www.google.com"}
+                    onChange={(e) =>
+                      updateHelper(
+                        index,
+                        "clientLogo",
+                        e.target.value,
+                        clients,
+                        setClients
+                      )
+                    }
+                    value={client.clientLogo}
                   />
 
                   {/* clientTestimonial */}
-                  <InputFields
-                    labelId={"clientTestimonial"}
+                  <InputField
+                    labelId={`client-testimonial-${index}`}
                     labelName={"Enter Client Testimonial"}
                     inputType={"text"}
-                    inputId={"clientTestimonial"}
-                    inputName={"clientTestimonial"}
+                    inputId={`client-testimonial-${index}`}
                     placeHolder={"Ex :- Keyur Panchal made a really good..."}
+                    onChange={(e) =>
+                      updateHelper(
+                        index,
+                        "clientTestimonial",
+                        e.target.value,
+                        clients,
+                        setClients
+                      )
+                    }
+                    value={client.clientTestimonial}
                   />
                 </div>
               </div>
@@ -489,6 +696,7 @@ const TemplateForm = ({ formOpen, action, pending }) => {
                 {skills.map((skill, index) => (
                   <button
                     key={index}
+                    type="button"
                     onClick={() => skillDelete(index)}
                     className="bg-white text-red-600 gap-3 flex items-center justify-between px-4 py-2 rounded-lg shadow"
                   >
@@ -508,6 +716,7 @@ const TemplateForm = ({ formOpen, action, pending }) => {
                     type={"text"}
                     name={"skills"}
                     id={"skills"}
+                    value={skillVal}
                     placeholder={"Ex :- JavaScript"}
                     onKeyDown={handleKeyDown}
                     onChange={handleSkillsValue}
@@ -517,34 +726,62 @@ const TemplateForm = ({ formOpen, action, pending }) => {
               </div>
             </div>
           </FormSectionWrapper>
-        </form>
 
-        {/* Buttons for navigating */}
-        <div className="mt-10 flex flex-row-reverse">
-          {activeSection !== "Skills" ? (
+          {/* show error message */}
+          {err && (
+            <div className="bg-red-600 text-white px-4 py-2 rounded-lg shadow my-5">
+              <p>{err}</p>
+            </div>
+          )}
+
+          {/* when formopens it will scroll to this ref */}
+          <div ref={formRef} />
+
+          {/* Buttons for navigating */}
+          <div className="mt-10 flex flex-row justify-between">
+            {/* Previous Button */}
             <button
-              onClick={() => {
-                const currentIndex = sections.findIndex(
-                  (s) => s.id === activeSection
-                );
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                const index = sections.findIndex((s) => s.id === activeSection);
 
-                if (currentIndex < sections.length - 1) {
-                  setActiveSection(sections[currentIndex + 1].id);
+                if (index > 0) {
+                  setActiveSection(sections[index - 1].id);
                 }
               }}
-              className="bg-red-600 text-white rounded-lg px-5 py-2 transition transform duration-100 ease-in-out hover:bg-red-800 active:scale-96"
+              className="bg-white text-red-600 rounded-lg px-5 py-2 shadow transition-transform duration-100 ease-in-out hover:bg-red-600 hover:text-white active:scale-96 cursor-pointer"
             >
-              Next
+              Previous
             </button>
-          ) : (
-            <button
-              disabled={pending}
-              className="bg-red-600 text-white rounded-lg px-5 py-2 transition transform duration-100 ease-in-out hover:bg-red-800 active:scale-96"
-            >
-              Submit
-            </button>
-          )}
-        </div>
+
+            {activeSection !== "Skills" ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  const currentIndex = sections.findIndex(
+                    (s) => s.id === activeSection
+                  );
+
+                  if (currentIndex < sections.length - 1) {
+                    setActiveSection(sections[currentIndex + 1].id);
+                  }
+                }}
+                className="bg-red-600 text-white rounded-lg px-5 py-2 transition transform duration-100 ease-in-out hover:bg-red-800 active:scale-96"
+              >
+                Next
+              </button>
+            ) : (
+              <button
+                type="submit"
+                className="bg-red-600 text-white rounded-lg px-5 py-2 transition transform duration-100 ease-in-out hover:bg-red-800 active:scale-96"
+              >
+                Submit
+              </button>
+            )}
+          </div>
+        </form>
       </div>
     </div>
   );

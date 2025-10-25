@@ -1,7 +1,7 @@
 import { Eye, MoveRight } from "lucide-react";
 import React from "react";
 
-const ChooseTemplate = ({ onclick }) => {
+const ChooseTemplate = ({ handleFormOpen }) => {
   return (
     <div className="max-w-[800px] mx-auto font-open-sans">
       {/* Heading */}
@@ -45,7 +45,7 @@ const ChooseTemplate = ({ onclick }) => {
             {/* buttons */}
             <div className="mt-10 mb-4  [&>button]:flex  [&>button]:justify-between [&>button]:items-center [&>button]:gap-3">
               <button
-                onClick={onclick}
+                onClick={() => handleFormOpen("template1")}
                 className="w-full bg-red-600 text-white px-5 py-2 rounded-lg cursor-pointer"
               >
                 <span>Customize this template</span>
@@ -94,7 +94,7 @@ const ChooseTemplate = ({ onclick }) => {
             {/* buttons */}
             <div className="mt-10 mb-4 [&>button]:flex [&>button]:items-center [&>button]:justify-between [&>button]:gap-3">
               <button
-                onClick={onclick}
+                onClick={() => handleFormOpen("template2")}
                 className="w-full bg-red-600 text-white px-5 py-2 rounded-lg cursor-pointer"
               >
                 <span>Customize this template</span>
